@@ -1,0 +1,12 @@
+[package]
+name = "nonlinear_schrodinger"
+version = "0.1.0"
+edition = "2021"
+authors = ["Florent CLM Michel <florent.michel.10@normalesup.org>"]
+
+[features]
+default = ["ft_cpu"]
+ft_cpu = []
+opencl = []
+
+[dependencies]
