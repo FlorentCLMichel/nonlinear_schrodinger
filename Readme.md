@@ -17,8 +17,8 @@ My aim is to design it from scratch as much as possible to maximize flexibility.
 
 ## To do
 
-* add documentation on the nonlinear Schrödinger equations
 * multi-dimensional fft on CPU
+* add documentation on the nonlinear Schrödinger equations
 * structure for the solver:
     * dimensionality
     * shape of the grid and space step

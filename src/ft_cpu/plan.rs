@@ -30,6 +30,9 @@ pub fn find_plan(n: usize) -> Vec<usize> {
     let mut n = n;
     let mut m: usize = 2;
     let mut step: usize = 1;
+    if n==1 {
+        return vec![1];
+    }
     while n > 1 {
         while n%m == 0 {
             plan.push(m);
