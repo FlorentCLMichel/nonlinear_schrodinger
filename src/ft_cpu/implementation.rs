@@ -1,5 +1,5 @@
-use crate::{ R, C, FtStruct, MFtStruct, FFTError };
-use crate::ft_cpu::plan::*;
+use super::{ R, C, FtStruct, MFtStruct, FFTError };
+use super::plan::*;
 
 
 impl FtStruct {

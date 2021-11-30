@@ -1,4 +1,4 @@
-use crate::C;
+use crate::{ R, C };
 
 /// a structure to perform one-dimensional Fourier transforms
 pub struct FtStruct {
