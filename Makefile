@@ -11,10 +11,10 @@ debug_opencl:
 	cargo build --offline --features "opencl"
 
 release_cpu:
-	cargo build --offline
+	cargo build --release --offline
 
 release_opencl:
-	cargo build --offline --features "opencl"
+	cargo build --release --offline --features "opencl"
 
 clean:
 	rm -r target; rm Cargo.lock
