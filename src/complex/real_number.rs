@@ -20,6 +20,7 @@ pub trait RealNumber : Copy + Clone + ops::Add<Output=Self>
     fn cos(self) -> Self;
     fn sin(self) -> Self;
     fn sqrt(self) -> Self;
+    fn zero() -> Self;
 }
 
 #[macro_export]
@@ -39,6 +40,7 @@ macro_rules! arithmetic_impl {
         fn sqrt(self) -> $T {
             $T::sqrt(self)
         }
+        fn zero() -> $T { 0. }
     }
 )}
 

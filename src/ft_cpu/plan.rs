@@ -36,7 +36,7 @@ pub fn find_plan(n: usize) -> Vec<usize> {
     while n > 1 {
         while n%m == 0 {
             plan.push(m);
-            n = n / m;
+            n /= m;
         }
         m += step;
         if step==1 {

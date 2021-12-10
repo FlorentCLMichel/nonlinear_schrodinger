@@ -242,7 +242,7 @@ impl<T: RealNumber> ops::DivAssign<Self> for Complex<T> {
 
 impl<T: RealNumber> std::fmt::Display for Complex<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.imag >= (self.imag-self.imag) {
+        if self.imag >= T::zero() {
             write!(f, "{}+{}i", self.real, self.imag)
         } else {
             write!(f, "{}{}i", self.real, self.imag)

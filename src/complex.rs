@@ -52,17 +52,15 @@ pub fn rmse<'a, T: RealNumber>(mut a: &'a [Complex<T>], mut b: &'a [Complex<T>])
 
     // exchange the arrays if a is larger than b
     if a.len() > b.len() {
-        let c = a;
-        a = b;
-        b = c;
+        std::mem::swap(&mut a, &mut b);
     }
 
     // compute the rmse
     for i in 0..a.len() {
         res += (a[i] - b[i]).abs2();
     }
-    for i in a.len()..b.len() {
-        res += b[i].abs2();
+    for e in b.iter().skip(a.len()) {
+        res += e.abs2();
     }
     res.sqrt()
 }

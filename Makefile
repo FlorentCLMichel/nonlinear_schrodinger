@@ -1,6 +1,9 @@
 test:
 	cargo test --offline --all-features
 
+clippy:
+	cargo clippy --offline
+
 debug_cpu:
 	cargo build --offline
 

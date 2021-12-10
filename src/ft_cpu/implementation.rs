@@ -299,8 +299,8 @@ impl MFtStruct {
 
         // compute the total length
         let mut total_length: usize = 1;
-        for d in 0..dimension {
-            total_length *= shape[d];
+        for l in shape.iter() {
+            total_length *= *l;
         }
 
         // build te 1D FT structures
@@ -352,8 +352,8 @@ impl MFtStruct {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn ft(&self, x: &Vec<C>) -> Result<Vec<C>, FFTError> {
-        let mut z = x.clone();
+    pub fn ft(&self, x: &[C]) -> Result<Vec<C>, FFTError> {
+        let mut z = x.to_owned();
         let mut y = vec![C::new(0.,0.); x.len()];
         self.ft_inplace(&mut z, &mut y)?;
         Ok(y)
@@ -398,8 +398,8 @@ impl MFtStruct {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn ift(&self, x: &Vec<C>) -> Result<Vec<C>, FFTError> {
-        let mut z = x.clone();
+    pub fn ift(&self, x: &[C]) -> Result<Vec<C>, FFTError> {
+        let mut z = x.to_owned();
         let mut y = vec![C::new(0.,0.); x.len()];
         self.ift_inplace(&mut z, &mut y)?;
         Ok(y)
@@ -478,6 +478,7 @@ impl MFtStruct {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::many_single_char_names)]
     pub fn ft_inplace(&self, x: &mut [C], y: &mut [C]) -> Result<(), FFTError> {
         
         if self.dimension == 0 {
@@ -511,9 +512,7 @@ impl MFtStruct {
         }
 
         if self.dimension % 2 == 0 {
-            for i in 0..x.len() {
-                y[i] = x[i];
-            }
+            y.clone_from_slice(&x[..]);
         }
 
         Ok(())
@@ -592,6 +591,7 @@ impl MFtStruct {
     /// # Ok(())
     /// # }
     /// ```
+    #[allow(clippy::many_single_char_names)]
     pub fn ift_inplace(&self, x: &mut [C], y: &mut [C]) -> Result<(), FFTError> {
         
         if self.dimension == 0 {
@@ -625,9 +625,7 @@ impl MFtStruct {
         }
 
         if self.dimension % 2 == 0 {
-            for i in 0..x.len() {
-                y[i] = x[i];
-            }
+            y.clone_from_slice(&x[..]);
         }
 
         Ok(())
@@ -651,11 +649,7 @@ impl MFtStruct {
         }
 
         // exchange i and j if i > j
-        if i > j {
-            let buf = i;
-            i = j;
-            j = buf;
-        }
+        if i > j { std::mem::swap(&mut i, &mut j); }
 
         // compute the lengths
         let mut product_length_before: usize = 1;
