@@ -1,5 +1,8 @@
 use crate::{ R, C, PI };
 
+#[cfg(feature="multithread_ft")]
+use rayon::prelude::*;
+
 
 /// find the optimal plan for a given length
 ///
@@ -30,9 +33,6 @@ pub fn find_plan(n: usize) -> Vec<usize> {
     let mut n = n;
     let mut m: usize = 2;
     let mut step: usize = 1;
-    if n==1 {
-        return vec![1];
-    }
     while n > 1 {
         while n%m == 0 {
             plan.push(m);
@@ -130,20 +130,60 @@ pub fn get_butterflies_and_twiddles(n: usize, plan: &[usize])
 /// ```
 pub fn ft_inplace_tf (a: &[C], b: &mut [C], n: usize, tf: &[C]) {
     
-    // compute the Fourier transform
-    let mut coeff;
-    for i in 0..n {
-        for k in 0..(a.len()/n) {
-            let k_n = k*n;
-            coeff = C::new(0.,0.);
-            let mut index_tf = 0;
-            for j in 0..n {
-                coeff += tf[index_tf] * a[k_n+j];
-                index_tf += i;
-                if index_tf >= n { index_tf-= n; }
+    #[cfg(feature="multithread_ft")]
+    {
+        a.par_iter().chunks(n).zip(b.par_iter_mut().chunks(n)).for_each(move |(a_c, mut b_c)| {
+            let mut coeff: C;
+            let mut index_tf: usize;
+            for (i, x_b) in b_c.iter_mut().enumerate().take(n) {
+                coeff = C::new(0.,0.);
+                index_tf = 0;
+                for &x_a in a_c.iter() {
+                    coeff += tf[index_tf] * *x_a;
+                    index_tf += i;
+                    if index_tf >= n { index_tf -= n; }
+                }
+                **x_b = coeff;
             }
-            b[k_n+i] = coeff;
-        }
+        });
+    } 
+    
+    #[cfg(not(feature="multithread_ft"))]
+    {
+        a.chunks(n).zip(b.chunks_mut(n)).for_each(|(a_c, b_c)| {
+            let mut coeff: C;
+            let mut index_tf: usize;
+            for (i, x_b) in b_c.iter_mut().enumerate().take(n) {
+                coeff = C::new(0.,0.);
+                index_tf = 0;
+                for &x_a in a_c {
+                    coeff += tf[index_tf] * x_a;
+                    index_tf += i;
+                    if index_tf >= n { index_tf -= n; }
+                }
+                *x_b = coeff;
+            }
+        });
+    }
+}
+
+
+pub fn ft_inplace_pow2 (a: &[C], b: &mut [C]) {
+    
+    #[cfg(feature="multithread_ft")]
+    {
+        a.par_iter().chunks(2).zip(b.par_iter_mut().chunks(2)).for_each(|(a_c, mut b_c)| {
+            *b_c[0] = *a_c[0] + *a_c[1];
+            *b_c[1] = *a_c[0] - *a_c[1];
+        });
+    }
+    
+    #[cfg(not(feature="multithread_ft"))]
+    {
+        a.chunks(2).zip(b.chunks_mut(2)).for_each(|(a_c, b_c)| {
+            b_c[0] = a_c[0] + a_c[1];
+            b_c[1] = a_c[0] - a_c[1];
+        });
     }
 }
 
@@ -154,7 +194,12 @@ fn get_butterflies_and_twiddles_(n: usize, plan: &[usize], g: usize,
                                  twiddles_small_ft: &mut Vec<Vec<C>>) 
 {
    
-    // if the plan has a length of 1, stop
+    // if the plan is empty, do nothing
+    if plan.is_empty() {
+        return;
+    }
+    
+    // if the plan has a length 1, perform the last operations and stop
     if plan.len() == 1 {
         butterflies.push((0..n).collect());
         twiddles.push(vec![C::new(1.,0.); n]);

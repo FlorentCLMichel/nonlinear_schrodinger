@@ -28,8 +28,11 @@ impl FtStruct {
         // find the butterfly coefficients and twiddle factors
         let (butterflies, twiddles, twiddles_small_ft) = get_butterflies_and_twiddles(n, &plan);
 
+        // see if the size is a power of 2
+        let is_power_2 = check_pow_2(n);
+
         // return the ft structure
-        FtStruct { n, plan, butterflies, twiddles, twiddles_small_ft }
+        FtStruct { n, plan, butterflies, twiddles, twiddles_small_ft, is_power_2 }
     }
 
 
@@ -192,9 +195,13 @@ impl FtStruct {
             }
         
             // small Fourier transform
-            ft_inplace_tf(b, a, self.plan[self.plan.len()-1-k], 
-                          &self.twiddles_small_ft[first_index_small_ft..
+            if self.is_power_2 {
+                ft_inplace_pow2(b, a);
+            } else {
+                ft_inplace_tf(b, a, self.plan[self.plan.len()-1-k], 
+                              &self.twiddles_small_ft[first_index_small_ft..
                                         first_index_small_ft + self.plan[self.plan.len()-1-k]]);
+            }
             first_index_small_ft += self.plan[self.plan.len()-1-k];
     
         }
@@ -692,6 +699,19 @@ impl MFtStruct {
         
         Ok(())
     }
+}
+
+
+fn check_pow_2(mut n: usize) -> bool {
+    
+    if n==0 { return false; }
+    
+    while n > 1 {
+        if n%2 == 1 { return false; }
+        n /= 2;
+    }
+    
+    true
 }
 
 

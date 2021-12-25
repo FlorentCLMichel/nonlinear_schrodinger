@@ -6,7 +6,8 @@ pub struct FtStruct {
     plan: Vec<usize>,
     butterflies: Vec<usize>, 
     twiddles: Vec<C>,
-    twiddles_small_ft: Vec<C>
+    twiddles_small_ft: Vec<C>,
+    is_power_2: bool,
 }
 
 /// a structure to perform multi-dimensional Fourier transforms
