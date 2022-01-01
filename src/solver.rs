@@ -7,6 +7,7 @@ pub struct Solver {
     shape: Vec<usize>,
     steps: Vec<R>,
     grid_fourier_space: Vec<Vec<R>>,
+    potential: Vec<R>,
     ft_struct: MFtStruct
 }
 
@@ -19,6 +20,7 @@ impl Solver {
     ///
     /// * `shape`: shape of the grid
     /// * `steps`: steps in the space directions
+    /// * `potential`: array of potential values
     ///
     /// # Error
     ///
@@ -33,20 +35,33 @@ impl Solver {
     /// #
     /// let shape: Vec<usize> = vec![100, 100, 100];
     /// let steps: Vec<R> = vec![0.1, 0.1, 0.1];
-    /// let solver = Solver::new(shape, steps)?;
+    /// let potential: Vec<R> = vec![0.; 1_000_000];
+    /// let solver = Solver::new(shape, steps, potential)?;
     /// #
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(shape: Vec<usize>, steps: Vec<R>) -> Result<Self, SolverError> {
+    pub fn new(shape: Vec<usize>, steps: Vec<R>, potential: Vec<R>) -> Result<Self, SolverError> {
+
+        // check the length of the shape vector
         if shape.len() != steps.len() {
             return Err(SolverError::new(format!(
                     "The 'steps' vector (size {}) must have the same size as the 'shape' one (size {})",
                     steps.len(), shape.len())));
         }
+
         let ft_struct = MFtStruct::new(shape.clone());
         let grid_fourier_space = generate_fourier_grid(&shape, &steps);
-        Ok(Solver { shape, steps, grid_fourier_space, ft_struct })
+
+        // check the length of the potential vector
+        let n_points = shape.iter().fold(1, |res, a| res * a);
+        if potential.len() != n_points {
+            return Err(SolverError::new(format!(
+                    "The 'potential' vector (size {}) must have the same size as the number of points ({})",
+                    potential.len(), n_points)));
+        }
+
+        Ok(Solver { shape, steps, grid_fourier_space, potential, ft_struct })
     }
 }
 
