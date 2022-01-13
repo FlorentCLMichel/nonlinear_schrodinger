@@ -93,8 +93,11 @@ fn generate_fourier_grid(shape: &[usize], steps: &[R]) -> Vec<Vec<R>> {
         let k_max = 2.*PI / steps[i];
         let dk = k_max / (s as R);
         let mut row = Vec::<R>::with_capacity(s);
-        for j in 0..s {
-            row.push((j as R + 0.5) * dk - 0.5 * k_max);
+        for j in 0..=(s/2) {
+            row.push((j as R) * dk);
+        }
+        for j in (s/2+1)..s {
+            row.push((j as R) * dk - k_max);
         }
         grid.push(row);
     }
