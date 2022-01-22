@@ -6,7 +6,7 @@ use crate::ft_cpu::MFtStruct;
 pub struct Solver {
     shape: Vec<usize>,
     steps: Vec<R>,
-    grid_fourier_space: Vec<Vec<R>>,
+    kinetic: Vec<R>,
     potential: Vec<R>,
     ft_struct: MFtStruct
 }
@@ -35,13 +35,16 @@ impl Solver {
     /// #
     /// let shape: Vec<usize> = vec![100, 100, 100];
     /// let steps: Vec<R> = vec![0.1, 0.1, 0.1];
-    /// let potential: Vec<R> = vec![0.; 1_000_000];
-    /// let solver = Solver::new(shape, steps, potential)?;
+    /// let potential_fun = |x: &[R]| { x[0] + x[1] + x[2] };
+    /// let solver = Solver::new(shape, steps, Box::new(potential_fun))?;
     /// #
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(shape: Vec<usize>, steps: Vec<R>, potential: Vec<R>) -> Result<Self, SolverError> {
+    pub fn new(shape: Vec<usize>, steps: Vec<R>, potential_fun: Box<dyn Fn(&[R]) -> R>) 
+        -> Result<Self, SolverError> 
+    {
+        let n_points = shape.iter().fold(1, |res, a| res * a);
 
         // check the length of the shape vector
         if shape.len() != steps.len() {
@@ -51,17 +54,27 @@ impl Solver {
         }
 
         let ft_struct = MFtStruct::new(shape.clone());
-        let grid_fourier_space = generate_fourier_grid(&shape, &steps);
 
-        // check the length of the potential vector
-        let n_points = shape.iter().fold(1, |res, a| res * a);
-        if potential.len() != n_points {
-            return Err(SolverError::new(format!(
-                    "The 'potential' vector (size {}) must have the same size as the number of points ({})",
-                    potential.len(), n_points)));
+        // generate the kinetic and potential terms
+        let mut kinetic = Vec::<R>::with_capacity(n_points);
+        let mut potential = Vec::<R>::with_capacity(n_points);
+        let grid_fourier_space = generate_fourier_grid(&shape, &steps);
+        let mut coordinates: Vec<R> = vec![0.; shape.len()];
+        for i in 0..n_points {
+            let mut k = i;
+            let mut k2: R = 0.;
+            for j in 0..shape.len() {
+                let l = k % shape[j];
+                let kj = grid_fourier_space[j][l];
+                k2 += kj * kj;
+                coordinates[j] = 0.5 * steps[j] * ((2*l + 1) as R - shape[j] as R);
+                k /= shape[j];
+            }
+            potential.push(potential_fun(&coordinates));
+            kinetic.push(0.5*k2);
         }
 
-        Ok(Solver { shape, steps, grid_fourier_space, potential, ft_struct })
+        Ok(Solver { shape, steps, kinetic, potential, ft_struct })
     }
 }
 
@@ -102,4 +115,35 @@ fn generate_fourier_grid(shape: &[usize], steps: &[R]) -> Vec<Vec<R>> {
         grid.push(row);
     }
     grid
+}
+
+
+#[cfg(test)]
+mod tests {
+
+    use super::*;
+
+    #[test]
+    fn new_solver_1() {
+
+        // create the solver
+        let shape: Vec<usize> = vec![301, 201, 101];
+        let steps: Vec<R> = vec![0.1, 0.1, 0.1];
+        let potential_fun = |x: &[R]| { x[0] + 2.*x[1] + 3.*x[2] };
+        let solver = Solver::new(shape, steps, Box::new(potential_fun)).unwrap();
+
+        assert_eq!(solver.kinetic[0], 0.);
+        assert!((solver.kinetic[1] - 0.021786965709185015).abs() < 1e-16);
+        assert!((solver.kinetic[2] - 0.08714786283674006).abs() < 1e-16);
+        assert!((solver.kinetic[301] - 0.04885821836632439).abs() < 1e-16);
+        assert!((solver.kinetic[301*201] - 0.1935026840719411).abs() < 1e-16);
+        assert!((solver.kinetic[1*301*201+1*301+1] - 0.2641478681474505).abs() < 1e-16);
+        assert_eq!(solver.potential[150+100*301+50*201*301], 0.);
+        assert!((solver.potential[151+100*301+50*201*301] - 0.1).abs() < 1e-16);
+        assert!((solver.potential[150+101*301+50*201*301] - 0.2).abs() < 1e-16);
+        assert!((solver.potential[150+100*301+51*201*301] - 0.3).abs() < 1e-16);
+        assert!((solver.potential[149+100*301+50*201*301] + 0.1).abs() < 1e-16);
+        assert!((solver.potential[150+99*301+50*201*301] + 0.2).abs() < 1e-16);
+        assert!((solver.potential[150+100*301+49*201*301] + 0.3).abs() < 1e-16);
+    }
 }
