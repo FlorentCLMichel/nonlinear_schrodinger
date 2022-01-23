@@ -1,7 +1,7 @@
-test_cpu:
+test:
 	cargo test --offline
 
-test_cpu_multithread:
+test_multithread:
 	cargo test --offline --features "multithread_ft"
 
 test_opencl:
@@ -10,19 +10,22 @@ test_opencl:
 clippy:
 	cargo clippy --offline
 
-debug_cpu:
+clippy_opencl:
+	cargo clippy --offline --features "opencl"
+
+debug:
 	cargo build --offline
 
-debug_cpu_multithread:
+debug_multithread:
 	cargo build --offline --features "multithread_ft"
 
 debug_opencl:
 	cargo build --offline --no-default-features --features "opencl"
 
-release_cpu:
+release:
 	cargo build --release --offline
 
-release_cpu_multithread:
+release_multithread:
 	cargo build --release --offline --features "multithread_ft"
 
 release_opencl:

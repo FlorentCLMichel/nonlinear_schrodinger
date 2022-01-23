@@ -1,7 +1,7 @@
 use crate::{ R, C, PI };
 
 #[cfg(feature = "ft_cpu")]
-use crate::ft_cpu::MFtStruct;
+use crate::ft_cpu::{ MFtStruct, FFTError };
 
 pub struct Solver {
     shape: Vec<usize>,
@@ -20,7 +20,7 @@ pub struct Solver {
 
 impl Solver {
 
-    /// generale a new `solver`
+    /// generate a new `solver`
     ///
     /// # Argument 
     ///
@@ -50,7 +50,7 @@ impl Solver {
     pub fn new(shape: Vec<usize>, steps: Vec<R>, potential_fun: Box<dyn Fn(&[R]) -> R>) 
         -> Result<Self, SolverError> 
     {
-        let n_points = shape.iter().fold(1, |res, a| res * a);
+        let n_points = shape.iter().product();
 
         // check the length of the shape vector
         if shape.len() != steps.len() {
@@ -61,7 +61,7 @@ impl Solver {
         
         let dimensions: Vec<R> = steps.iter().zip(shape.iter()).map(|(x, y)| x * (*y as R)).collect();
         let infinitesimal_volume = steps.iter().fold(1., |res, a| res * a);
-        let infinitesimal_volume_k = dimensions.iter().fold(1., |res, a| res * (2. * PI / a));
+        let infinitesimal_volume_k = infinitesimal_volume / n_points as R;
 
         let ft_struct = MFtStruct::new(shape.clone());
 
@@ -84,7 +84,7 @@ impl Solver {
                 coordinates[j] = 0.5 * steps[j] * ((2*l + 1) as R - shape[j] as R);
                 k /= shape[j];
             }
-            grid.push(coordinates_k.clone());
+            grid.push(coordinates.clone());
             potential.push(potential_fun(&coordinates));
             grid_k.push(coordinates_k.clone());
             kinetic.push(0.5*k2);
@@ -92,6 +92,39 @@ impl Solver {
 
         Ok(Solver { shape, steps, n_points, dimensions, infinitesimal_volume, 
                     infinitesimal_volume_k, grid, grid_k, kinetic, potential, ft_struct })
+    }
+    
+
+    /// compute the array representing a wave function from a closure
+    ///
+    /// # Argument
+    ///
+    /// * `psi`: A closure of taking an array of `dimension` numbers of type `R` and returning a
+    /// number of type `C`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use nonlinear_schrodinger::{ Solver, R, C };
+    ///
+    /// # fn main() -> Result<(), nonlinear_schrodinger::SolverError> {
+    /// #
+    ///
+    /// // build the solver structure
+    /// let shape: Vec<usize> = vec![100, 100, 100];
+    /// let steps: Vec<R> = vec![0.1, 0.1, 0.1];
+    /// let potential_fun = |x: &[R]| { x[0] + x[1] + x[2] };
+    /// let solver = Solver::new(shape, steps, Box::new(potential_fun))?;
+    ///
+    /// // example of wave function
+    /// let psi_fun = |x: &[R]| { C::new(x[0].cos(), x[0].sin()) };
+    /// let psi = solver.eval_psi(Box::new(psi_fun)); 
+    /// #
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn eval_psi(&self, psi_fun: Box<dyn Fn(&[R]) -> C>) -> Vec<C> {
+        self.grid.iter().map(|x| psi_fun(x)).collect()
     }
 
 
@@ -122,7 +155,10 @@ impl Solver {
     /// let solver = Solver::new(shape, steps, Box::new(potential_fun))?;
     ///
     /// // example of wave function
-    /// let psi = vec![C::new(3.,4.); 1_000_000]; 
+    /// let psi_fun = |x: &[R]| C::new(5.*x[0].cos(), 5.*x[0].sin());
+    /// let psi = solver.eval_psi(Box::new(psi_fun));
+    ///
+    /// // compute the mass
     /// let mass = solver.mass(&psi)?;
     /// assert!((mass - 25_000.).abs() < 1e-11);
     /// #
@@ -146,6 +182,67 @@ impl Solver {
 
         Ok(result)
     }
+    
+
+    /// compute the momentum
+    ///
+    /// # Argument
+    ///
+    /// * `psi`: A complex array with length `self.n_points` representing the wave function.
+    ///
+    /// # Return 
+    ///
+    /// If `psi` has the right number of points, return `Ok(momentum)`, where `momentum`. 
+    /// 
+    /// Otherwise, return a `SolverError`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use nonlinear_schrodinger::{ Solver, R, C, PI };
+    ///
+    /// # fn main() -> Result<(), nonlinear_schrodinger::SolverError> {
+    /// #
+    ///
+    /// // build the solver structure
+    /// let shape: Vec<usize> = vec![100, 100, 100];
+    /// let steps: Vec<R> = vec![0.1, 0.1, 0.1];
+    /// let potential_fun = |x: &[R]| { x[0] + x[1] + x[2] };
+    /// let solver = Solver::new(shape, steps, Box::new(potential_fun))?;
+    ///
+    /// // example of wave function
+    /// let psi_fun = |x: &[R]| C::new(5.*(0.2*x[0]*PI).cos(), 5.*(0.2*x[0]*PI).sin());
+    /// let psi = solver.eval_psi(Box::new(psi_fun));
+    ///
+    /// // compute the momentum
+    /// let momentum = solver.momentum(&psi)?;
+    /// assert!((momentum[0] - 5_000.*PI).abs() < 1e-11);
+    /// assert!((momentum[1] - 0.).abs() < 1e-11);
+    /// assert!((momentum[2] - 0.).abs() < 1e-11);
+    /// #
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn momentum(&self, psi: &[C]) -> Result<Vec<R>, SolverError> {
+
+        if psi.len() != self.n_points {
+            return Err(SolverError { message: 
+                format!("Wrong number of points for the input array in the computation of the momentum: expected {}, got {}",
+                        self.n_points, psi.len())
+            });
+        }
+
+        let mut result: Vec<R> = vec![0.; self.shape.len()];
+        let psi_k = self.ft_struct.ft(&psi)?;
+        for (k, psi) in self.grid_k.iter().zip(psi_k.iter()) {
+            let psi2 = psi.abs2();
+            for i in 0..self.shape.len() {
+                result[i] += k[i] * psi2 * self.infinitesimal_volume_k;
+            }
+        }
+
+        Ok(result)
+    }
 }
 
 
@@ -165,6 +262,12 @@ impl std::error::Error for SolverError {}
 impl SolverError {
     fn new(message: String) -> Self {
         SolverError { message }
+    }
+}
+
+impl std::convert::From<FFTError> for SolverError {
+    fn from(e: FFTError) -> Self {
+        SolverError { message: format!("FFTError: {}", e) }
     }
 }
 
