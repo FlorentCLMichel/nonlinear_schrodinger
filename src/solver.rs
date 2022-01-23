@@ -211,13 +211,14 @@ impl Solver {
     /// let solver = Solver::new(shape, steps, Box::new(potential_fun))?;
     ///
     /// // example of wave function
-    /// let psi_fun = |x: &[R]| C::new(5.*(0.2*x[0]*PI).cos(), 5.*(0.2*x[0]*PI).sin());
+    /// let psi_fun = |x: &[R]| C::new(5.*(0.2*x[0]*PI - 0.4*x[1]*PI).cos(), 
+    ///                                5.*(0.2*x[0]*PI - 0.4*x[1]*PI).sin());
     /// let psi = solver.eval_psi(Box::new(psi_fun));
     ///
     /// // compute the momentum
     /// let momentum = solver.momentum(&psi)?;
     /// assert!((momentum[0] - 5_000.*PI).abs() < 1e-11);
-    /// assert!((momentum[1] - 0.).abs() < 1e-11);
+    /// assert!((momentum[1] + 10_000.*PI).abs() < 1e-10);
     /// assert!((momentum[2] - 0.).abs() < 1e-11);
     /// #
     /// # Ok(())
