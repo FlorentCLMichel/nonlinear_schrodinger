@@ -6,6 +6,12 @@ use crate::ft_cpu::MFtStruct;
 pub struct Solver {
     shape: Vec<usize>,
     steps: Vec<R>,
+    n_points: usize,
+    dimensions: Vec<R>,
+    infinitesimal_volume: R,
+    infinitesimal_volume_k: R,
+    grid: Vec<Vec<R>>,
+    grid_k: Vec<Vec<R>>,
     kinetic: Vec<R>,
     potential: Vec<R>,
     ft_struct: MFtStruct
@@ -52,29 +58,93 @@ impl Solver {
                     "The 'steps' vector (size {}) must have the same size as the 'shape' one (size {})",
                     steps.len(), shape.len())));
         }
+        
+        let dimensions: Vec<R> = steps.iter().zip(shape.iter()).map(|(x, y)| x * (*y as R)).collect();
+        let infinitesimal_volume = steps.iter().fold(1., |res, a| res * a);
+        let infinitesimal_volume_k = dimensions.iter().fold(1., |res, a| res * (2. * PI / a));
 
         let ft_struct = MFtStruct::new(shape.clone());
 
         // generate the kinetic and potential terms
+        let mut grid = Vec::<Vec<R>>::with_capacity(n_points);
+        let mut grid_k = Vec::<Vec<R>>::with_capacity(n_points);
         let mut kinetic = Vec::<R>::with_capacity(n_points);
         let mut potential = Vec::<R>::with_capacity(n_points);
         let grid_fourier_space = generate_fourier_grid(&shape, &steps);
         let mut coordinates: Vec<R> = vec![0.; shape.len()];
+        let mut coordinates_k: Vec<R> = vec![0.; shape.len()];
         for i in 0..n_points {
             let mut k = i;
             let mut k2: R = 0.;
             for j in 0..shape.len() {
                 let l = k % shape[j];
                 let kj = grid_fourier_space[j][l];
+                coordinates_k[j] = kj;
                 k2 += kj * kj;
                 coordinates[j] = 0.5 * steps[j] * ((2*l + 1) as R - shape[j] as R);
                 k /= shape[j];
             }
+            grid.push(coordinates_k.clone());
             potential.push(potential_fun(&coordinates));
+            grid_k.push(coordinates_k.clone());
             kinetic.push(0.5*k2);
         }
 
-        Ok(Solver { shape, steps, kinetic, potential, ft_struct })
+        Ok(Solver { shape, steps, n_points, dimensions, infinitesimal_volume, 
+                    infinitesimal_volume_k, grid, grid_k, kinetic, potential, ft_struct })
+    }
+
+
+    /// compute the mass
+    ///
+    /// # Argument
+    ///
+    /// * `psi`: A complex array with length `self.n_points` representing the wave function.
+    ///
+    /// # Return 
+    ///
+    /// If `psi` has the right number of points, return `Ok(mass)`. 
+    /// 
+    /// Otherwise, return a `SolverError`.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use nonlinear_schrodinger::{ Solver, R, C };
+    ///
+    /// # fn main() -> Result<(), nonlinear_schrodinger::SolverError> {
+    /// #
+    ///
+    /// // build the solver structure
+    /// let shape: Vec<usize> = vec![100, 100, 100];
+    /// let steps: Vec<R> = vec![0.1, 0.1, 0.1];
+    /// let potential_fun = |x: &[R]| { x[0] + x[1] + x[2] };
+    /// let solver = Solver::new(shape, steps, Box::new(potential_fun))?;
+    ///
+    /// // example of wave function
+    /// let psi = vec![C::new(3.,4.); 1_000_000]; 
+    /// let mass = solver.mass(&psi)?;
+    /// assert!((mass - 25_000.).abs() < 1e-11);
+    /// #
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn mass(&self, psi: &[C]) -> Result<R, SolverError> {
+
+        if psi.len() != self.n_points {
+            return Err(SolverError { message: 
+                format!("Wrong number of points for the input array in the computation of the mass: expected {}, got {}",
+                        self.n_points, psi.len())
+            });
+        }
+
+        let mut result: R = 0.;
+        for x in psi {
+            result += x.abs2();
+        }
+        result *= self.infinitesimal_volume;
+
+        Ok(result)
     }
 }
 
