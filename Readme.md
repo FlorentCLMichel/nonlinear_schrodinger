@@ -12,21 +12,17 @@ My aim is to design it from scratch as much as possible to maximize flexibility.
 
 ## Done
 
-* write a custom `Complex` type
-* write a custom 1D Fourier transform
+* custom `Complex` type
+* custom 1D Fourier transform
+* multi-dimensional fft on CPU
+* structure for the solver
 
 ## To do
 
-* multi-dimensional fft on CPU
-* add documentation on the nonlinear Schrödinger equations
-* structure for the solver:
-    * dimensionality
-    * shape of the grid and space step
-    * external potential (closure)
-    * nonlinear terms (closure)
-    * whether to use OpenCL or not
 * implement the solver: one time step (take the time step as argument)
 * implement the solver: multiple time steps (take the time step and total time as arguments)
+* test the solver
+* add documentation on the nonlinear Schrödinger equations
 * 1D fft using OpenCL
 * multi-dimensional fft using OpenCL
 * link the OpenCL fft to the solver
