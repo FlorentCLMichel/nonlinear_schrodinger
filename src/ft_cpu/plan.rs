@@ -3,6 +3,26 @@ use crate::{ R, C, PI };
 #[cfg(feature="multithread_ft")]
 use rayon::prelude::*;
 
+#[cfg(feature="multithread_ft")]
+macro_rules! chunks_exact {
+    ($a: ident, $n: ident) => { $a.par_chunks_exact($n) };
+}
+
+#[cfg(feature="multithread_ft")]
+macro_rules! chunks_exact_mut {
+    ($a: ident, $n: ident) => { $a.par_chunks_exact_mut($n) };
+}
+
+#[cfg(not(feature="multithread_ft"))]
+macro_rules! chunks_exact {
+    ($a: ident, $n: ident) => { $a.chunks_exact($n) };
+}
+
+#[cfg(not(feature="multithread_ft"))]
+macro_rules! chunks_exact_mut {
+    ($a: ident, $n: ident) => { $a.chunks_exact_mut($n) };
+}
+
 
 /// find the optimal plan for a given length
 ///
@@ -129,62 +149,28 @@ pub fn get_butterflies_and_twiddles(n: usize, plan: &[usize])
 /// # }
 /// ```
 pub fn ft_inplace_tf (a: &[C], b: &mut [C], n: usize, tf: &[C]) {
-    
-    #[cfg(feature="multithread_ft")]
-    {
-        a.par_iter().chunks(n).zip(b.par_iter_mut().chunks(n)).for_each(move |(a_c, mut b_c)| {
-            let mut coeff: C;
-            let mut index_tf: usize;
-            for (i, x_b) in b_c.iter_mut().enumerate().take(n) {
-                coeff = C::new(0.,0.);
-                index_tf = 0;
-                for &x_a in a_c.iter() {
-                    coeff += tf[index_tf] * *x_a;
-                    index_tf += i;
-                    if index_tf >= n { index_tf -= n; }
-                }
-                **x_b = coeff;
+    chunks_exact!(a, n).zip(chunks_exact_mut!(b, n)).for_each(|(a_c, b_c)| {
+        let mut coeff: C;
+        let mut index_tf: usize;
+        for (i, x_b) in b_c.iter_mut().enumerate() {
+            coeff = C::new(0.,0.);
+            index_tf = 0;
+            for &x_a in a_c {
+                coeff += tf[index_tf] * x_a;
+                index_tf += i;
+                if index_tf >= n { index_tf -= n; }
             }
-        });
-    } 
-    
-    #[cfg(not(feature="multithread_ft"))]
-    {
-        a.chunks(n).zip(b.chunks_mut(n)).for_each(|(a_c, b_c)| {
-            let mut coeff: C;
-            let mut index_tf: usize;
-            for (i, x_b) in b_c.iter_mut().enumerate().take(n) {
-                coeff = C::new(0.,0.);
-                index_tf = 0;
-                for &x_a in a_c {
-                    coeff += tf[index_tf] * x_a;
-                    index_tf += i;
-                    if index_tf >= n { index_tf -= n; }
-                }
-                *x_b = coeff;
-            }
-        });
-    }
+            *x_b = coeff;
+        }
+    });
 }
 
 
 pub fn ft_inplace_pow2 (a: &[C], b: &mut [C]) {
-    
-    #[cfg(feature="multithread_ft")]
-    {
-        a.par_iter().chunks(2).zip(b.par_iter_mut().chunks(2)).for_each(|(a_c, mut b_c)| {
-            *b_c[0] = *a_c[0] + *a_c[1];
-            *b_c[1] = *a_c[0] - *a_c[1];
-        });
-    }
-    
-    #[cfg(not(feature="multithread_ft"))]
-    {
-        a.chunks(2).zip(b.chunks_mut(2)).for_each(|(a_c, b_c)| {
-            b_c[0] = a_c[0] + a_c[1];
-            b_c[1] = a_c[0] - a_c[1];
-        });
-    }
+    a.chunks_exact(2).zip(b.chunks_exact_mut(2)).for_each(|(a_c, b_c)| {
+        b_c[0] = a_c[0] + a_c[1];
+        b_c[1] = a_c[0] - a_c[1];
+    });
 }
 
 

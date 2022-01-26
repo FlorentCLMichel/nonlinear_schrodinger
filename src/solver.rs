@@ -234,7 +234,7 @@ impl Solver {
         }
 
         let mut result: Vec<R> = vec![0.; self.shape.len()];
-        let psi_k = self.ft_struct.ft(&psi)?;
+        let psi_k = self.ft_struct.ft(psi)?;
         for (k, psi) in self.grid_k.iter().zip(psi_k.iter()) {
             let psi2 = psi.abs2();
             for i in 0..self.shape.len() {

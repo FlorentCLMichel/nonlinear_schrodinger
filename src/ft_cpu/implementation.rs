@@ -185,31 +185,42 @@ impl FtStruct {
             return Err(FFTError::new(format!("Wrong second array size: expected {}, got {}", 
                                              self.n, b.len())));
         }
+        
+        let n = self.n;
+        assert_eq!(a.len(), n);
+        assert_eq!(b.len(), n);
+        assert_eq!(self.butterflies.len(), n*(self.plan.len()+1));
+        assert_eq!(self.twiddles.len(), n*(self.plan.len()+1));
+
+        // first butterfly and twiddle
+        for (e, &butterfly) in b.iter_mut().zip(self.butterflies.iter())
+        {
+             *e = a[butterfly];
+        }
 
         let mut first_index_small_ft = 0;
-        for k in 0..self.plan.len() {
-    
-            // butterfly and twiddle
-            for i in 0..self.n {
-                b[i] = a[self.butterflies[k*self.n+i]] * self.twiddles[k*self.n+i];
-            }
-        
+        for (butterflies, (twiddles, &p)) in self.butterflies[n..].chunks_exact(n)
+                                                        .zip(self.twiddles[n..].chunks_exact(n)
+                                                                    .zip(self.plan.iter().rev())) 
+        {
+            
             // small Fourier transform
             if self.is_power_2 {
                 ft_inplace_pow2(b, a);
             } else {
-                ft_inplace_tf(b, a, self.plan[self.plan.len()-1-k], 
-                              &self.twiddles_small_ft[first_index_small_ft..
-                                        first_index_small_ft + self.plan[self.plan.len()-1-k]]);
+                ft_inplace_tf(b, a, p, 
+                          &self.twiddles_small_ft[first_index_small_ft..
+                                                  first_index_small_ft + p]);
             }
-            first_index_small_ft += self.plan[self.plan.len()-1-k];
-    
-        }
-            
-        // final butterfly and twiddle
-        let k = self.plan.len();
-        for i in 0..self.n {
-            b[i] = a[self.butterflies[k*self.n+i]] * self.twiddles[k*self.n+i];
+            first_index_small_ft += p;
+
+            // butterfly and twiddle
+            for (e, (&butterfly, &twiddle)) in b.iter_mut().zip(
+                butterflies.iter().zip(twiddles.iter()))
+            {
+                *e = a[butterfly] * twiddle;
+            }
+        
         }
     
         Ok(()) 
