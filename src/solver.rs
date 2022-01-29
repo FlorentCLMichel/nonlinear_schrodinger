@@ -14,6 +14,7 @@ pub struct Solver {
     grid_k: Vec<Vec<R>>,
     kinetic: Vec<R>,
     potential: Vec<R>,
+    g: Box<dyn Fn(R) -> R>,
     ft_struct: MFtStruct
 }
 
@@ -26,7 +27,8 @@ impl Solver {
     ///
     /// * `shape`: shape of the grid
     /// * `steps`: steps in the space directions
-    /// * `potential`: array of potential values
+    /// * `potential_fun`: external potential
+    /// * `g`: self-interaction function
     ///
     /// # Error
     ///
@@ -42,12 +44,14 @@ impl Solver {
     /// let shape: Vec<usize> = vec![100, 100, 100];
     /// let steps: Vec<R> = vec![0.1, 0.1, 0.1];
     /// let potential_fun = |x: &[R]| { x[0] + x[1] + x[2] };
-    /// let solver = Solver::new(shape, steps, Box::new(potential_fun))?;
+    /// let g = |x| x;
+    /// let solver = Solver::new(shape, steps, Box::new(potential_fun), Box::new(g))?;
     /// #
     /// # Ok(())
     /// # }
     /// ```
-    pub fn new(shape: Vec<usize>, steps: Vec<R>, potential_fun: Box<dyn Fn(&[R]) -> R>) 
+    pub fn new(shape: Vec<usize>, steps: Vec<R>, potential_fun: Box<dyn Fn(&[R]) -> R>, 
+               g: Box<dyn Fn(R) -> R>) 
         -> Result<Self, SolverError> 
     {
         let n_points = shape.iter().product();
@@ -91,7 +95,7 @@ impl Solver {
         }
 
         Ok(Solver { shape, steps, n_points, dimensions, infinitesimal_volume, 
-                    infinitesimal_volume_k, grid, grid_k, kinetic, potential, ft_struct })
+                    infinitesimal_volume_k, grid, grid_k, kinetic, potential, g, ft_struct })
     }
     
 
@@ -114,7 +118,8 @@ impl Solver {
     /// let shape: Vec<usize> = vec![100, 100, 100];
     /// let steps: Vec<R> = vec![0.1, 0.1, 0.1];
     /// let potential_fun = |x: &[R]| { x[0] + x[1] + x[2] };
-    /// let solver = Solver::new(shape, steps, Box::new(potential_fun))?;
+    /// let g = |x| x;
+    /// let solver = Solver::new(shape, steps, Box::new(potential_fun), Box::new(g))?;
     ///
     /// // example of wave function
     /// let psi_fun = |x: &[R]| { C::new(x[0].cos(), x[0].sin()) };
@@ -152,7 +157,8 @@ impl Solver {
     /// let shape: Vec<usize> = vec![100, 100, 100];
     /// let steps: Vec<R> = vec![0.1, 0.1, 0.1];
     /// let potential_fun = |x: &[R]| { x[0] + x[1] + x[2] };
-    /// let solver = Solver::new(shape, steps, Box::new(potential_fun))?;
+    /// let g = |x| x;
+    /// let solver = Solver::new(shape, steps, Box::new(potential_fun), Box::new(g))?;
     ///
     /// // example of wave function
     /// let psi_fun = |x: &[R]| C::new(5.*x[0].cos(), 5.*x[0].sin());
@@ -208,7 +214,8 @@ impl Solver {
     /// let shape: Vec<usize> = vec![100, 100, 100];
     /// let steps: Vec<R> = vec![0.1, 0.1, 0.1];
     /// let potential_fun = |x: &[R]| { x[0] + x[1] + x[2] };
-    /// let solver = Solver::new(shape, steps, Box::new(potential_fun))?;
+    /// let g = |x| x;
+    /// let solver = Solver::new(shape, steps, Box::new(potential_fun), Box::new(g))?;
     ///
     /// // example of wave function
     /// let psi_fun = |x: &[R]| C::new(5.*(0.2*x[0]*PI - 0.4*x[1]*PI).cos(), 
@@ -304,7 +311,8 @@ mod tests {
         let shape: Vec<usize> = vec![301, 201, 101];
         let steps: Vec<R> = vec![0.1, 0.1, 0.1];
         let potential_fun = |x: &[R]| { x[0] + 2.*x[1] + 3.*x[2] };
-        let solver = Solver::new(shape, steps, Box::new(potential_fun)).unwrap();
+        let g = |x| x;
+        let solver = Solver::new(shape, steps, Box::new(potential_fun), Box::new(g)).unwrap();
 
         assert_eq!(solver.kinetic[0], 0.);
         assert!((solver.kinetic[1] - 0.021786965709185015).abs() < 1e-16);
