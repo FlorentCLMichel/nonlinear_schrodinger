@@ -186,43 +186,74 @@ impl FtStruct {
                                              self.n, b.len())));
         }
         
-        let n = self.n;
-        assert_eq!(a.len(), n);
+        // small Fourier transform
+        if self.is_power_2 {
+            self.compute_fft_pow2(a, b)
+        } else {
+            self.compute_fft_nonpow2(a, b)
+        }
+    }
+    
+
+    fn compute_fft_nonpow2 (&self, a: &mut [C], b: &mut [C])
+        -> Result<(),FFTError> 
+    {
+        let n = a.len();
         assert_eq!(b.len(), n);
         assert_eq!(self.butterflies.len(), n*(self.plan.len()+1));
         assert_eq!(self.twiddles.len(), n*(self.plan.len()+1));
-
+   
         // first butterfly and twiddle
-        for (e, &butterfly) in b.iter_mut().zip(self.butterflies.iter())
-        {
-             *e = a[butterfly];
-        }
+        b.iter_mut().zip(self.butterflies.iter()).for_each(|(e, &butterfly)| { *e = a[butterfly]; });
 
         let mut first_index_small_ft = 0;
         for (butterflies, (twiddles, &p)) in self.butterflies[n..].chunks_exact(n)
-                                                        .zip(self.twiddles[n..].chunks_exact(n)
-                                                                    .zip(self.plan.iter().rev())) 
+                                                             .zip(self.twiddles[n..].chunks_exact(n)
+                                                                               .zip(self.plan.iter().rev())) 
         {
             
             // small Fourier transform
-            if self.is_power_2 {
-                ft_inplace_pow2(b, a);
-            } else {
-                ft_inplace_tf(b, a, p, 
+            ft_inplace_tf(b, a, p, 
                           &self.twiddles_small_ft[first_index_small_ft..
                                                   first_index_small_ft + p]);
-            }
             first_index_small_ft += p;
 
             // butterfly and twiddle
-            for (e, (&butterfly, &twiddle)) in b.iter_mut().zip(
-                butterflies.iter().zip(twiddles.iter()))
-            {
-                *e = a[butterfly] * twiddle;
-            }
-        
+            b.iter_mut().zip(butterflies.iter().zip(twiddles.iter())).for_each(
+                |(e, (&butterfly, &twiddle))| { *e = a[butterfly] * twiddle; });
         }
+        
+        Ok(()) 
+    }
+
+    fn compute_fft_pow2 (&self, a: &mut [C], b: &mut [C])
+        -> Result<(),FFTError> 
+    {
     
+        let n = a.len();
+        let n_iter = self.plan.len();
+        assert_eq!(b.len(), n);
+        assert_eq!(self.butterflies.len(), n*(n_iter+1));
+        assert_eq!(self.twiddles.len(), n*(n_iter+1));
+       
+        // first butterfly and twiddle
+        b.iter_mut().zip(self.butterflies.iter()).for_each(|(e, &butterfly)| { *e = a[butterfly]; });
+    
+        for (butterflies, twiddles) in self.butterflies[n..].chunks_exact(n)
+                                                       .zip(self.twiddles[n..].chunks_exact(n)) {
+            
+            // small Fourier transform
+            ft_inplace_pow2(b, a);
+    
+            // butterfly and twiddle
+            b.chunks_exact_mut(2).zip(butterflies.chunks_exact(2).zip(twiddles.chunks_exact(2)))
+                                 .for_each(
+                |(e, (butterfly, twiddle))| { 
+                    e[0] = a[butterfly[0]]; 
+                    e[1] = a[butterfly[1]] * twiddle[1]; 
+                });
+        }
+            
         Ok(()) 
     }
 
