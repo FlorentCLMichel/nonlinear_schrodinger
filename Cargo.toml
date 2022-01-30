@@ -12,3 +12,4 @@ opencl = []
 
 [dependencies]
 rayon = { version = "1.5", optional = true }
+plotters = "0.3"
