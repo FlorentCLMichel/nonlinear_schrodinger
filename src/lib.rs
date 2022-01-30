@@ -18,3 +18,5 @@ pub use ft_cpu::*;
 
 mod solver;
 pub use solver::*;
+
+pub mod prelude;

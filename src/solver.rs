@@ -5,9 +5,7 @@ use crate::ft_cpu::{ MFtStruct, FFTError };
 
 pub struct Solver {
     shape: Vec<usize>,
-    steps: Vec<R>,
     n_points: usize,
-    dimensions: Vec<R>,
     infinitesimal_volume: R,
     infinitesimal_volume_k: R,
     grid: Vec<Vec<R>>,
@@ -15,7 +13,8 @@ pub struct Solver {
     kinetic: Vec<R>,
     potential: Vec<R>,
     g: Box<dyn Fn(R) -> R>,
-    ft_struct: MFtStruct
+    ft_struct: MFtStruct,
+    buffer: Vec<C>
 }
 
 
@@ -63,7 +62,6 @@ impl Solver {
                     steps.len(), shape.len())));
         }
         
-        let dimensions: Vec<R> = steps.iter().zip(shape.iter()).map(|(x, y)| x * (*y as R)).collect();
         let infinitesimal_volume = steps.iter().fold(1., |res, a| res * a);
         let infinitesimal_volume_k = infinitesimal_volume / n_points as R;
 
@@ -94,8 +92,8 @@ impl Solver {
             kinetic.push(0.5*k2);
         }
 
-        Ok(Solver { shape, steps, n_points, dimensions, infinitesimal_volume, 
-                    infinitesimal_volume_k, grid, grid_k, kinetic, potential, g, ft_struct })
+        Ok(Solver { shape, n_points, infinitesimal_volume, infinitesimal_volume_k, grid, grid_k, 
+                    kinetic, potential, g, ft_struct, buffer: vec![C::new(0.,0.); n_points] })
     }
     
 
@@ -215,7 +213,7 @@ impl Solver {
     /// let steps: Vec<R> = vec![0.1, 0.1, 0.1];
     /// let potential_fun = |x: &[R]| { x[0] + x[1] + x[2] };
     /// let g = |x| x;
-    /// let solver = Solver::new(shape, steps, Box::new(potential_fun), Box::new(g))?;
+    /// let mut solver = Solver::new(shape, steps, Box::new(potential_fun), Box::new(g))?;
     ///
     /// // example of wave function
     /// let psi_fun = |x: &[R]| C::new(5.*(0.2*x[0]*PI - 0.4*x[1]*PI).cos(), 
@@ -231,7 +229,7 @@ impl Solver {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn momentum(&self, psi: &[C]) -> Result<Vec<R>, SolverError> {
+    pub fn momentum(&mut self, psi: &[C]) -> Result<Vec<R>, SolverError> {
 
         if psi.len() != self.n_points {
             return Err(SolverError { message: 
@@ -241,8 +239,8 @@ impl Solver {
         }
 
         let mut result: Vec<R> = vec![0.; self.shape.len()];
-        let psi_k = self.ft_struct.ft(psi)?;
-        for (k, psi) in self.grid_k.iter().zip(psi_k.iter()) {
+        self.ft_struct.ft_inplace(&mut psi.to_vec(), &mut self.buffer)?;
+        for (k, psi) in self.grid_k.iter().zip(self.buffer.iter()) {
             let psi2 = psi.abs2();
             for i in 0..self.shape.len() {
                 result[i] += k[i] * psi2 * self.infinitesimal_volume_k;
@@ -250,6 +248,141 @@ impl Solver {
         }
 
         Ok(result)
+    }
+
+    /// evolve the wave function in time
+    ///
+    /// # Arguments
+    ///
+    /// * `psi`: array containing the initial condition; it will be mofidied to contain the final
+    /// configuration
+    /// * `dt`: time step
+    /// * `nt`: number of time steps
+    ///
+    /// # Error
+    ///
+    /// Return a `SolverError` if the input has a length different from `n_points` or if one of the
+    /// (direct or inverse) Fourier transforms fails.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use nonlinear_schrodinger::prelude::*;
+    ///
+    /// # fn main() -> Result<(), nonlinear_schrodinger::SolverError> {
+    /// #
+    /// // parameters
+    /// let shape: Vec<usize> = vec![128, 128];
+    /// let steps: Vec<R> = vec![0.1, 0.1];
+    /// let potential_fun = |x: &[R]| { 0. };
+    /// let g = |x| x;
+    ///
+    /// // build the solver
+    /// let mut solver = Solver::new(shape, steps, Box::new(potential_fun), Box::new(g))?;
+    ///
+    /// // initial condition
+    /// let mut psi = vec![C::new(1., 0.); 128*128];
+    ///
+    /// // evolution
+    /// let dt = 0.1;
+    /// let nt = 100;
+    /// solver.evolve(&mut psi, dt, nt)?;
+    ///
+    /// // check the result
+    /// let expected_val = C::new(-0.8390715290764524, -0.5440211108893698);
+    /// let error = psi.iter().fold(0., |acc, &x| acc + (x - expected_val).abs2()).sqrt();
+    /// println!("RMSE: {:e}", error);
+    /// assert!(error < 3e-13);
+    /// #
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn evolve(&mut self, psi: &mut [C], dt: f64, nt: usize) -> Result<(), SolverError>
+    {
+        // check that `psi` has the right number of points
+        if psi.len() != self.n_points {
+            return Err(SolverError { message: format!(
+                        "Invalid input size: expected {}, got {}",
+                        self.n_points, psi.len())});
+        }
+
+        self.evolve_x_space(psi, -0.5*dt);
+        for _ in 0..nt {
+            self.evolve_x_space(psi, dt);
+            self.evolve_k_space(psi, dt)?;
+        }
+        self.evolve_x_space(psi, 0.5*dt);
+
+        Ok(())
+    }
+    
+    /// evolve the wave function in time out of place
+    ///
+    /// # Arguments
+    ///
+    /// * `psi`: array containing the initial condition; it will be mofidied to contain the final
+    /// configuration
+    /// * `dt`: time step
+    /// * `nt`: number of time steps
+    ///
+    /// # Error
+    ///
+    /// Return a `SolverError` if the input has a length different from `n_points` or if one of the
+    /// (direct or inverse) Fourier transforms fails.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use nonlinear_schrodinger::prelude::*;
+    ///
+    /// # fn main() -> Result<(), nonlinear_schrodinger::SolverError> {
+    /// #
+    /// // parameters
+    /// let shape: Vec<usize> = vec![128, 128];
+    /// let steps: Vec<R> = vec![0.1, 0.1];
+    /// let potential_fun = |x: &[R]| { 0. };
+    /// let g = |x| x;
+    ///
+    /// // build the solver
+    /// let mut solver = Solver::new(shape, steps, Box::new(potential_fun), Box::new(g))?;
+    ///
+    /// // initial condition
+    /// let psi0 = vec![C::new(1., 0.); 128*128];
+    ///
+    /// // evolution
+    /// let dt = 0.1;
+    /// let nt = 100;
+    /// let psi = solver.evolve_oop(&psi0, dt, nt)?;
+    ///
+    /// // check the result
+    /// let expected_val = C::new(-0.8390715290764524, -0.5440211108893698);
+    /// let error = psi.iter().fold(0., |acc, &x| acc + (x - expected_val).abs2()).sqrt();
+    /// println!("RMSE: {:e}", error);
+    /// assert!(error < 3e-13);
+    /// #
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn evolve_oop(&mut self, psi0: &[C], dt: f64, nt: usize) -> Result<Vec<C>, SolverError>
+    {
+        let mut psi = psi0.to_vec();
+        self.evolve(&mut psi, dt, nt)?;
+        Ok(psi)
+    }
+
+    fn evolve_x_space(&self, psi: &mut [C], dt: f64) {
+        psi.iter_mut().zip(self.potential.iter()).for_each(|(psi, &v)| 
+            *psi *= C::new(0., (v + (self.g)(psi.abs2())) * dt).exp()
+        );
+    }
+
+    fn evolve_k_space(&mut self, psi: &mut [C], dt: f64) -> Result<(), SolverError> {
+        self.ft_struct.ft_inplace(psi, &mut self.buffer)?;
+        self.buffer.iter_mut().zip(self.kinetic.iter()).for_each(|(psi, &half_k2)| {
+            *psi *= C::new(0., half_k2 * dt).exp();
+        });
+        self.ft_struct.ift_inplace(&mut self.buffer, psi)?;
+        Ok(())
     }
 }
 

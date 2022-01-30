@@ -1,11 +1,23 @@
 test:
+ifdef test
+	cargo test $(test) --offline
+else 
 	cargo test --offline
+endif
 
 test_multithread:
+ifdef test
+	cargo test $(test) --offline --features "multithread_ft"
+else 
 	cargo test --offline --features "multithread_ft"
+endif
 
 test_opencl:
-	cargo test --offline --no-default-features --features "opencl"
+ifdef test
+	cargo test $(test) --offline --no-default-features --features "opencl"
+else 
+	cargo test --offline --features --no-default-features --features "opencl"
+endif
 
 clippy:
 	cargo clippy --offline
