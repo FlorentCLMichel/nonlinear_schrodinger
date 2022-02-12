@@ -10,7 +10,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let g = |x| x;
     
     // initial condition; should be stationary when the amplitude is small
-    let amplitude = 0.5;
+    let amplitude = 0.1;
     let nx = shape[0];
     let ny = shape[1];
     let dx = steps[0];
@@ -39,7 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
      
     // evolution
     let dt = 0.001;
-    let nt = 100;
+    let nt = 1000;
     println!("Initial mass: \t{}", solver.mass(&psi)?);
     solver.evolve(&mut psi, dt, nt)?;
     println!("Final mass: \t{}", solver.mass(&psi)?);

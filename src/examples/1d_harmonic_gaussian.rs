@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let g = |x| x;
     
     // initial condition; should be stationary when the amplitude is small
-    let amplitude = 0.5;
+    let amplitude = 0.1;
     let nx = shape[0];
     let dx = steps[0];
     let mut psi = (0..nx).map(|i| 
@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // evolution
     let n_steps = 10;
     let dt = 0.001;
-    let nt = 100;
+    let nt = 1000;
     let mut densities = vec![
         psi.iter().map(|x| x.abs2()).collect::<Vec<R>>()
     ];
