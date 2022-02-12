@@ -42,7 +42,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // plot the densities
     plot_1d(&vec![solver.grid.iter().map(|p| p[0]).collect()], 
             &densities, 
-            "Results/test1",
+            "Results/1d_harmonic_gaussian",
             "Density", "x", "ρ", 
             &(0..=n_steps).map(|i| format!("t = {:.2}", ((i*nt) as R) * dt)).collect::<Vec<String>>(),
             COL1, COL2)?;

@@ -82,6 +82,85 @@ pub fn plot_1d(x: &[Vec<R>], y: &[Vec<R>], fname: &str,
     Ok(())
 }
 
+pub fn plot_2d(z: &Vec<R>, fname: &str, 
+        x_min: R, x_max: R, y_min: R, y_max: R,
+        nx: usize, ny: usize)
+    -> Result<(), Box<dyn std::error::Error>> 
+{
+     
+    // check that z has length nx * ny
+    if z.len() != nx * ny {
+        return Err(TextError::new_box(format!("Expected z.len() = nx * ny, but got {} and {}",
+                                              z.len(), nx * ny)));
+    }
+ 
+    let fname = format!("{}.png", fname);
+    let root = BitMapBackend::new(&fname, (480, 480)).into_drawing_area();
+        
+    // find the minimum and maximum of x, y, and z
+    let (z_min, z_max) = find_min_max(&[z.clone()])?;
+     
+    root.fill(&WHITE)?;
+    let root = root.margin(20, 20, 20, 20);
+    let mut chart = ChartBuilder::on(&root)
+        .x_label_area_size(20)
+        .y_label_area_size(20)
+        .build_cartesian_2d(x_min..x_max, y_min..y_max)?;
+
+    chart
+        .configure_mesh()
+        .disable_x_mesh()
+        .disable_y_mesh()
+        .draw()?;
+   
+    let dx = (x_max-x_min) / (nx as R - 1.);
+    let dy = (y_max-y_min) / (ny as R - 1.);
+    let plotting_area = chart.plotting_area();
+    let range = plotting_area.get_pixel_range();
+    let (pw, ph) = (range.0.end - range.0.start, range.1.end - range.1.start);
+    let (xr, yr) = (chart.x_range(), chart.y_range());
+    for a in 0..pw {
+        for b in 0..ph {
+            let xr = xr.start + (b as R / (pw as R - 1.)) * (xr.end - xr.start);
+            let yr = yr.start + (a as R / (ph as R - 1.)) * (yr.end - yr.start);
+            let ir = (xr-x_min) / dx;
+            let jr = (yr-y_min) / dy;
+            let i = ir.floor();
+            let j = jr.floor();
+            let ep_x = ir - i;
+            let ep_y = jr - j;
+            let i = i as usize;
+            let j = j as usize;
+            let zr = if (i+1 < nx) && (j+1 < ny) {
+                (1.-ep_x) * (1.-ep_y) * z[i*ny+j] 
+                + (1.-ep_x) * ep_y * z[i*ny+j+1]
+                + ep_x * (1. - ep_y) * z[(i+1)*ny+j]
+                + ep_x * ep_y * z[(i+1)*ny+j+1]
+            } else if i+1 < nx {
+                (1.-ep_x) * z[i*ny+j] 
+                + ep_x * z[(i+1)*ny+j]
+            } else if j+1 < ny {
+                (1.-ep_y) * z[i*ny+j] 
+                + ep_y * z[i*ny+j+1]
+            } else {
+                z[i*ny+j]
+            };
+            let c = (zr-z_min)/(z_max-z_min);
+            if c < 0. {
+                plotting_area.draw_pixel((xr, yr), &HSLColor(0., 1.0, 0.5))?;
+            } else if c > 1. {
+                plotting_area.draw_pixel((xr, yr), &HSLColor(1., 1.0, 0.5))?;
+            } else {
+                plotting_area.draw_pixel((xr, yr), &HSLColor(c, 1.0, 0.5))?;
+            }
+        }
+    }
+
+    root.present().expect(&format!("Unable to write fo file {}", fname));
+
+    Ok(())
+}
+
 
 fn find_min_max<T: PartialOrd + Copy>(x: &[Vec<T>]) -> Result<(T,T), TextError> {
     

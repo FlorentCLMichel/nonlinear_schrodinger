@@ -9,6 +9,11 @@ name = "1d_harmonic_gaussian"
 path = "src/examples/1d_harmonic_gaussian.rs"
 crate-type = ["bin"]
 
+[[example]]
+name = "2d_harmonic_gaussian"
+path = "src/examples/2d_harmonic_gaussian.rs"
+crate-type = ["bin"]
+
 [features]
 default = ["ft_cpu"]
 ft_cpu = []
