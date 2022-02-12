@@ -18,11 +18,11 @@ The Fourier transform engine is primarily designed for power-of-two sizes. It sh
 * custom 1D Fourier transform
 * multi-dimensional fft on CPU
 * implementation of a first solver
+* test the solver on a 1D quasi-stationary solution
+* test the solver on a 2D quasi-stationary solution
 
 ## To do
 
-* test the solver on 1D gray solitons
-* test the solver on 2D configurations
 * add documentation on the nonlinear Schrödinger equations
 * 1D fft using OpenCL
 * multi-dimensional fft using OpenCL
