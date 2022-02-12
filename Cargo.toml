@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Florent CLM Michel <florent.michel.10@normalesup.org>"]
 
-[[bin]]
-name = "test1"
-path = "src/bin/test1.rs"
+[[example]]
+name = "1d_harmonic_gaussian"
+path = "src/examples/1d_harmonic_gaussian.rs"
+crate-type = ["bin"]
 
 [features]
 default = ["ft_cpu"]

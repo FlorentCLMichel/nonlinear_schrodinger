@@ -1,5 +1,8 @@
 default: release
 
+example:
+	cargo run --offline --release --example ${example}
+
 test:
 ifdef test
 	cargo test $(test) --offline
