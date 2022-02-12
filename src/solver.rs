@@ -196,7 +196,8 @@ impl Solver {
     ///
     /// # Return 
     ///
-    /// If `psi` has the right number of points, return `Ok(momentum)`, where `momentum`. 
+    /// If `psi` has the right number of points, return `Ok(momentum)`, where `momentum` is the
+    /// momentum. 
     /// 
     /// Otherwise, return a `SolverError`.
     ///

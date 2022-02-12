@@ -32,9 +32,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut densities = vec![
         psi.iter().map(|x| x.abs2()).collect::<Vec<R>>()
     ];
-    for _ in 0..n_steps {
+    println!("Mass at step 0: \t{}", solver.mass(&psi)?);
+    for i in 0..n_steps {
         solver.evolve(&mut psi, dt, nt)?;
         densities.push(psi.iter().map(|x| x.abs2()).collect::<Vec<R>>());
+        println!("Mass at step {}: \t{}", i+1, solver.mass(&psi)?);
     }
     
     // plot the densities
