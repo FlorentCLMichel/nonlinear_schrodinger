@@ -6,30 +6,24 @@ pub fn plot_1d(x: &[Vec<R>], y: &[Vec<R>], fname: &str,
         col1: (u8, u8, u8), col2: (u8, u8, u8)) 
     -> Result<(), Box<dyn std::error::Error>> 
 {
-
-    // check that x and y have the same length
-    if x.len() != y.len() {
-        return Err(TextError::new_box(format!("Different numbers of x and y vectors ({} and {})",
-                            x.len(), y.len())));
-    }
      
     // check that we have the right number of labels
-    if labels.len() != x.len() {
+    if labels.len() != y.len() {
         return Err(TextError::new_box(format!("Different numbers of labels and lines ({} and {})",
-                            labels.len(), x.len())));
+                            labels.len(), y.len())));
     }
  
-    let fname = format!("Results/{}.svg", fname);
+    let fname = format!("{}.svg", fname);
     let root = SVGBackend::new(&fname, (640, 480)).into_drawing_area();
         
     // find the minimum and maximum of x and y
     let (x_min, x_max) = find_min_max(x)?;
     let (y_min, y_max) = find_min_max(y)?;
-    
+     
     root.fill(&WHITE)?;
     let root = root.margin(20, 20, 20, 20);
     let mut chart = ChartBuilder::on(&root)
-        .caption(title, ("sans-serif", 24).into_font())
+        .caption(title, ("sans-serif", 20).into_font())
         .x_label_area_size(40)
         .y_label_area_size(50)
         .build_cartesian_2d(x_min..x_max, y_min..y_max)?;
@@ -42,10 +36,11 @@ pub fn plot_1d(x: &[Vec<R>], y: &[Vec<R>], fname: &str,
         .y_desc(ylabel)
         .axis_desc_style(("sans-serif", 15))
         .draw()?;
+    
+    let n_plots = y.len();
+    for j in 0..n_plots {
 
-    for j in 0..x.len() {
-
-        let x = x[j].clone();
+        let x = x[j % x.len()].clone();
         let y = y[j].clone();
 
         // check that x and y have the same size
@@ -54,15 +49,15 @@ pub fn plot_1d(x: &[Vec<R>], y: &[Vec<R>], fname: &str,
                                 x.len(), y.len())));
         }
         
-        let ep = if x.len() > 1 {
-            (j as f64) / (x.len() - 1) as f64
+        let ep = if n_plots > 1 {
+            (j as f64) / (n_plots - 1) as f64
         } else {
-            1.
+            0.
         };
         let color = RGBColor(
-            ((col1.0 as f64) * ep + (col2.0 as f64) * (1.-ep)) as u8, 
-            ((col1.1 as f64) * ep + (col2.2 as f64) * (1.-ep)) as u8, 
-            ((col1.1 as f64) * ep + (col2.2 as f64) * (1.-ep)) as u8,
+            ((col2.0 as f64) * ep + (col1.0 as f64) * (1.-ep)) as u8, 
+            ((col2.1 as f64) * ep + (col1.1 as f64) * (1.-ep)) as u8, 
+            ((col2.2 as f64) * ep + (col1.2 as f64) * (1.-ep)) as u8,
         );
          
         // build the vector of coordinates

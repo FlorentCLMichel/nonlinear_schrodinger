@@ -8,7 +8,7 @@ pub struct Solver {
     n_points: usize,
     infinitesimal_volume: R,
     infinitesimal_volume_k: R,
-    grid: Vec<Vec<R>>,
+    pub grid: Vec<Vec<R>>,
     grid_k: Vec<Vec<R>>,
     kinetic: Vec<R>,
     potential: Vec<R>,

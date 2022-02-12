@@ -1,3 +1,5 @@
+default: release
+
 test:
 ifdef test
 	cargo test $(test) --offline

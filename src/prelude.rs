@@ -1,1 +1,1 @@
-pub use crate::{R, C, Solver};
+pub use crate::{R, C, Solver, SolverError};

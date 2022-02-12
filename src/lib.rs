@@ -19,6 +19,5 @@ pub use ft_cpu::*;
 mod solver;
 pub use solver::*;
 
-mod plotters;
-
+pub mod plotters;
 pub mod prelude;
