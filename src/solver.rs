@@ -223,7 +223,7 @@ impl Solver {
     ///
     /// // compute the momentum
     /// let momentum = solver.momentum(&psi)?;
-    /// assert!((momentum[0] - 5_000.*PI).abs() < 1e-11);
+    /// assert!((momentum[0] - 5_000.*PI).abs() < 2e-11);
     /// assert!((momentum[1] + 10_000.*PI).abs() < 1e-10);
     /// assert!((momentum[2] - 0.).abs() < 1e-11);
     /// #

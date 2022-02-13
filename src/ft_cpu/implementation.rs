@@ -1,6 +1,7 @@
 use super::{ R, C, FtStruct, MFtStruct, FFTError };
+use crate::PI;
 use super::plan::*;
-
+use std::cell::RefCell;
 
 impl FtStruct {
 
@@ -22,17 +23,40 @@ impl FtStruct {
     /// ```
     pub fn new(n: usize) -> FtStruct {
 
-        // find the optimal plan
-        let plan = find_plan(n);
-
-        // find the butterfly coefficients and twiddle factors
-        let (butterflies, twiddles, twiddles_small_ft) = get_butterflies_and_twiddles(n, &plan);
-
         // see if the size is a power of 2
         let is_power_2 = check_pow_2(n);
 
+        // compute c_bar and f_c_tilde if necessary
+        let mut c_bar = Vec::<C>::new();
+        let mut f_c_tilde = Vec::<C>::new();
+        let mut buffer1 = Vec::<C>::new();
+        let mut buffer2 = Vec::<C>::new();
+        let butterflies: Vec<usize>;
+        let twiddles: Vec<C>;
+        if is_power_2 {
+            let plan = find_plan(n);
+            let b_tw = get_butterflies_and_twiddles(n, &plan);
+            butterflies = b_tw.0;
+            twiddles = b_tw.1;
+        } else {
+            let mut m = 1;
+            while 2*n > m+1 {
+                m *= 2;
+            }
+            let plan = find_plan(m);
+            let b_tw = get_butterflies_and_twiddles(m, &plan);
+            butterflies = b_tw.0;
+            twiddles = b_tw.1;
+            c_bar = compute_c_bar(n);
+            f_c_tilde = compute_f_c_tilde(n, m);
+            buffer1 = vec![C::new(0.,0.); m];
+            buffer2 = vec![C::new(0.,0.); m];
+        }
+
         // return the ft structure
-        FtStruct { n, plan, butterflies, twiddles, twiddles_small_ft, is_power_2 }
+        FtStruct { n, butterflies, twiddles, c_bar, f_c_tilde, 
+            buffer1: RefCell::new(buffer1), buffer2: RefCell::new(buffer2), 
+            is_power_2 }
     }
 
 
@@ -198,31 +222,37 @@ impl FtStruct {
     fn compute_fft_nonpow2 (&self, a: &mut [C], b: &mut [C])
         -> Result<(),FFTError> 
     {
-        let n = a.len();
-        assert_eq!(b.len(), n);
-        assert_eq!(self.butterflies.len(), n*(self.plan.len()+1));
-        assert_eq!(self.twiddles.len(), n*(self.plan.len()+1));
-   
-        // first butterfly and twiddle
-        b.iter_mut().zip(self.butterflies.iter()).for_each(|(e, &butterfly)| { *e = a[butterfly]; });
 
-        let mut first_index_small_ft = 0;
-        for (butterflies, (twiddles, &p)) in self.butterflies[n..].chunks_exact(n)
-                                                             .zip(self.twiddles[n..].chunks_exact(n)
-                                                                               .zip(self.plan.iter().rev())) 
-        {
-            
-            // small Fourier transform
-            ft_inplace_tf(b, a, p, 
-                          &self.twiddles_small_ft[first_index_small_ft..
-                                                  first_index_small_ft + p]);
-            first_index_small_ft += p;
+        let mut buffer1 = self.buffer1.borrow_mut();
+        let mut buffer2 = self.buffer2.borrow_mut();
 
-            // butterfly and twiddle
-            b.iter_mut().zip(butterflies.iter().zip(twiddles.iter())).for_each(
-                |(e, (&butterfly, &twiddle))| { *e = a[butterfly] * twiddle; });
+        // multiply by c_bar
+        for (&x,(&y,z)) in a.iter().zip(self.c_bar.iter().zip(buffer1.iter_mut())) {
+            *z = x*y;
+        } 
+
+        // fill the rest of the buffer with 0s
+        for z in buffer1[a.len()..].iter_mut() {
+            *z = C::new(0.,0.);
         }
-        
+
+        // Fourier transform
+        self.compute_fft_pow2(&mut buffer1, &mut buffer2)?;
+
+        // multiplication by f_c_tilde
+        for (x, &y) in buffer2.iter_mut().zip(self.f_c_tilde.iter()) {
+            *x *= y;
+        }
+
+        // inverse Fourier transform
+        self.compute_fft_pow2(&mut buffer2, &mut buffer1)?;
+        ft_to_ift(&mut buffer1);
+
+        // save the result in b
+        for (x,(&y,&z)) in b.iter_mut().zip(buffer1.iter().zip(self.c_bar.iter())) {
+            *x = y * z;
+        }
+
         Ok(()) 
     }
 
@@ -231,10 +261,6 @@ impl FtStruct {
     {
     
         let n = a.len();
-        let n_iter = self.plan.len();
-        assert_eq!(b.len(), n);
-        assert_eq!(self.butterflies.len(), n*(n_iter+1));
-        assert_eq!(self.twiddles.len(), n*(n_iter+1));
        
         // first butterfly and twiddle
         b.iter_mut().zip(self.butterflies.iter()).for_each(|(e, &butterfly)| { *e = a[butterfly]; });
@@ -555,7 +581,7 @@ impl MFtStruct {
             self.transpose(a, b, i, n, self.shape[i], self.shape[n])?;
             for k in 0..(self.total_length / self.shape[i]) {
                 self.ft_structs[i].ft_inplace(&mut b[k*self.shape[i]..(k+1)*self.shape[i]],
-                                               &mut a[k*self.shape[i]..(k+1)*self.shape[i]])?;
+                                              &mut a[k*self.shape[i]..(k+1)*self.shape[i]])?;
             }
             self.transpose(a, b, i, n, self.shape[n], self.shape[i])?;
         }
@@ -754,6 +780,116 @@ fn check_pow_2(mut n: usize) -> bool {
     }
     
     true
+}
+
+
+fn compute_c_bar(size: usize) -> Vec<C> {
+    (0..size).map(|i| C::new(0., -((i*i) as R)*PI/(size as R)).exp())
+             .collect()
+}
+
+
+fn compute_f_c_tilde(size: usize, size_large_ft: usize) -> Vec<C> {
+    
+    // compute the vector c_tilde
+    let mut c_tilde = vec![C { real: 0., imag: 0. }; size_large_ft];
+
+    #[allow(clippy::needless_range_loop)]
+    for i in 0..size {
+        c_tilde[i] = C::new(0., ((i*i) as R)*PI/(size as R)).exp();
+    }
+    
+    for i in 1..size {
+        c_tilde[size_large_ft-i] = C::new(0., ((i*i) as R)*PI/(size as R)).exp();
+    }
+    
+    // compute the Fourier transform of c_tilde
+    let mut f_c_tilde = c_tilde.clone();
+    fft_pow2(&mut c_tilde.clone(), &mut f_c_tilde).unwrap();
+
+    f_c_tilde
+}
+
+
+fn fft_pow2(a: &mut [C], b: &mut [C]) 
+    -> Result<(),FFTError> 
+{
+    if a.len() != b.len() {
+        return Err(FFTError::new(format!(
+            "The arrays a (length {}) and b (length {}) must have the same length",
+            a.len(), b.len()
+        )));
+    }
+    if (a.is_empty()) || ((a.len() & (a.len() - 1)) != 0) {
+        return Err(FFTError::new(format!(
+            "The arrays a (length {}) needs to have a power-of-two length",
+            a.len()
+        )));
+    }
+    let n = a.len();
+    let plan = find_plan(n);
+    let butterflies_and_twiddles = get_butterflies_and_twiddles(n, &plan);
+    fft_pow2_from_tb(a, b, &butterflies_and_twiddles.0, &butterflies_and_twiddles.1)
+}
+
+
+fn fft_pow2_from_tb (a: &mut [C], b: &mut [C], 
+                     butterflies: &[usize], 
+                     twiddles: &[C]) 
+    -> Result<(),FFTError> 
+{
+
+    let n = a.len();
+    assert_eq!(b.len(), n);
+
+    // first butterfly and twiddle
+    b.iter_mut().zip(butterflies.iter()).for_each(|(e, &butterfly)| { *e = a[butterfly]; });
+        
+    for (butterflies, twiddles) in butterflies[n..].chunks_exact(n)
+                                                   .zip(twiddles[n..].chunks_exact(n)) {
+    
+        // small Fourier transform
+        ft_inplace_tf_pow2(b, a);
+        
+        // butterfly and twiddle
+        b.chunks_exact_mut(2).zip(butterflies.chunks_exact(2)
+                                             .zip(twiddles.chunks_exact(2)))
+                             .for_each(
+            |(e, (butterfly, twiddle))| { 
+                unsafe {
+                    e[0] = *a.get_unchecked(butterfly[0]); 
+                    e[1] = *a.get_unchecked(butterfly[1]) * twiddle[1]; 
+                }
+            });
+    }
+        
+    Ok(()) 
+}
+
+
+pub fn ft_inplace_tf_pow2 (a: &[C], b: &mut [C]) {
+    a.chunks_exact(2)
+     .zip(b.chunks_exact_mut(2))
+     .for_each(|(a_c, b_c)| {
+        b_c[0] = a_c[0] + a_c[1];
+        b_c[1] = a_c[0] - a_c[1];
+    });
+}
+
+
+fn ft_to_ift(y: &mut [C]) {
+        
+    // rescaling
+    let n_r = y.len() as R;
+    for a in y.iter_mut() {
+        *a /= n_r;
+    }
+
+    // swaps
+    let n = y.len();
+    for i in 1..(n+1)/2 {
+        y.swap(i, n-i);
+    }
 }
 
 

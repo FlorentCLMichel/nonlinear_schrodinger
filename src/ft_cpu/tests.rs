@@ -106,6 +106,17 @@ fn ift_4() {
 }
 
 #[test]
+fn ft_5() {
+    let n: usize = 5;
+    let mut x = vec![Complex {real: 0., imag: 0.}; n];
+    x[0] = Complex {real: 1., imag: 0.};
+    let ft_struct = FtStruct::new(n);
+    let y = ft_struct.ft(&x).unwrap();
+    let y_expected = vec![Complex { real: 1., imag: 0. }; n];
+    assert!(rmse(&y, &y_expected) < 1e-8);
+}
+
+#[test]
 fn ft_ift_1() {
     let x = vec![
         Complex { real: 1., imag: 1. },
@@ -253,6 +264,37 @@ fn m_ft_3() {
         Complex { real: 0., imag: 0. },
         Complex { real: 0., imag: 0. },
         Complex { real: 0., imag: 0. },
+    ];
+    assert!(rmse(&y, &y_expected) < 1e-8);
+}
+
+
+#[test]
+fn m_ft_4() {
+    let shape: Vec<usize> = vec![3,3];
+    let x = vec![
+        Complex {real: 1., imag: 0.}, 
+        Complex {real: 0., imag: 0.},
+        Complex {real: 0., imag: 0.},
+        Complex {real: 0., imag: 0.}, 
+        Complex {real: 0., imag: 0.},
+        Complex {real: 0., imag: 0.},
+        Complex {real: 0., imag: 0.}, 
+        Complex {real: 0., imag: 0.},
+        Complex {real: 0., imag: 0.},
+    ];
+    let ft_struct = MFtStruct::new(shape);
+    let y = ft_struct.ft(&x).unwrap();
+    let y_expected = vec![
+        Complex {real: 1., imag: 0.}, 
+        Complex {real: 1., imag: 0.},
+        Complex {real: 1., imag: 0.},
+        Complex {real: 1., imag: 0.}, 
+        Complex {real: 1., imag: 0.},
+        Complex {real: 1., imag: 0.},
+        Complex {real: 1., imag: 0.}, 
+        Complex {real: 1., imag: 0.},
+        Complex {real: 1., imag: 0.},
     ];
     assert!(rmse(&y, &y_expected) < 1e-8);
 }

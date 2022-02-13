@@ -1,12 +1,15 @@
 use crate::{ R, C };
+use std::cell::RefCell;
 
 /// a structure to perform one-dimensional Fourier transforms
 pub struct FtStruct {
     n: usize,
-    plan: Vec<usize>,
     butterflies: Vec<usize>, 
     twiddles: Vec<C>,
-    twiddles_small_ft: Vec<C>,
+    c_bar: Vec<C>,
+    f_c_tilde: Vec<C>,
+    buffer1: RefCell<Vec<C>>,
+    buffer2: RefCell<Vec<C>>,
     is_power_2: bool,
 }
 
