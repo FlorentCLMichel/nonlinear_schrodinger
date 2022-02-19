@@ -373,7 +373,6 @@ impl Solver {
         self.renormalize(psi, m0)?;
         for _ in 0..nt {
             self.evolve_x_space_i(psi, dt);
-            self.renormalize(psi, m0)?;
             self.evolve_k_space_i(psi, dt)?;
             self.renormalize(psi, m0)?;
         }
