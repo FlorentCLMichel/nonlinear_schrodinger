@@ -1,6 +1,12 @@
 use plotters::prelude::*;
 use crate::R;
 
+#[allow(non_upper_case_globals)]
+const Lx: u32 = 640;
+#[allow(non_upper_case_globals)]
+const Ly: u32 = 480;
+
+#[allow(clippy::too_many_arguments)]
 pub fn plot_1d(x: &[Vec<R>], y: &[Vec<R>], fname: &str,
         title: &str, xlabel: &str, ylabel: &str, labels: &[String],
         col1: (u8, u8, u8), col2: (u8, u8, u8)) 
@@ -14,7 +20,7 @@ pub fn plot_1d(x: &[Vec<R>], y: &[Vec<R>], fname: &str,
     }
  
     let fname = format!("{}.svg", fname);
-    let root = SVGBackend::new(&fname, (640, 480)).into_drawing_area();
+    let root = SVGBackend::new(&fname, (Lx, Ly)).into_drawing_area();
         
     // find the minimum and maximum of x and y
     let (x_min, x_max) = find_min_max(x)?;
@@ -82,9 +88,11 @@ pub fn plot_1d(x: &[Vec<R>], y: &[Vec<R>], fname: &str,
     Ok(())
 }
 
-pub fn plot_2d(z: &Vec<R>, fname: &str, 
+#[allow(clippy::too_many_arguments)]
+pub fn plot_2d(z: &[R], fname: &str, 
         x_min: R, x_max: R, y_min: R, y_max: R,
-        nx: usize, ny: usize)
+        nx: usize, ny: usize, 
+        show_axes: bool)
     -> Result<(), Box<dyn std::error::Error>> 
 {
      
@@ -95,17 +103,29 @@ pub fn plot_2d(z: &Vec<R>, fname: &str,
     }
  
     let fname = format!("{}.png", fname);
-    let root = BitMapBackend::new(&fname, (480, 480)).into_drawing_area();
+    let (lx, ly) = (Ly, ((Ly as R) * (y_max-y_min) / (x_max-x_min)) as u32);
+    let root = BitMapBackend::new(&fname, (lx, ly)).into_drawing_area();
         
     // find the minimum and maximum of x, y, and z
-    let (z_min, z_max) = find_min_max(&[z.clone()])?;
+    let (z_min, z_max) = find_min_max(&[z.to_vec()])?;
      
     root.fill(&WHITE)?;
-    let root = root.margin(20, 20, 20, 20);
-    let mut chart = ChartBuilder::on(&root)
-        .x_label_area_size(20)
-        .y_label_area_size(20)
-        .build_cartesian_2d(x_min..x_max, y_min..y_max)?;
+    let root = if show_axes { 
+        root.margin(20, 20, 20, 20)
+    } else {
+        root.margin(0, 0, 0, 0)
+    };
+    let mut chart = if show_axes { 
+        ChartBuilder::on(&root)
+            .x_label_area_size(20)
+            .y_label_area_size(20)
+            .build_cartesian_2d(x_min..x_max, y_min..y_max)?
+    } else {
+        ChartBuilder::on(&root)
+            .x_label_area_size(0)
+            .y_label_area_size(0)
+            .build_cartesian_2d(x_min..x_max, y_min..y_max)?
+    };
 
     chart
         .configure_mesh()
@@ -119,10 +139,10 @@ pub fn plot_2d(z: &Vec<R>, fname: &str,
     let range = plotting_area.get_pixel_range();
     let (pw, ph) = (range.0.end - range.0.start, range.1.end - range.1.start);
     let (xr, yr) = (chart.x_range(), chart.y_range());
-    for a in 0..pw {
-        for b in 0..ph {
-            let xr = xr.start + (b as R / (pw as R - 1.)) * (xr.end - xr.start);
-            let yr = yr.start + (a as R / (ph as R - 1.)) * (yr.end - yr.start);
+    for a in 0..=ph {
+        for b in 0..=pw {
+            let xr = xr.start + (b as R / (pw as R)) * (xr.end - xr.start);
+            let yr = yr.start + (a as R / (ph as R)) * (yr.end - yr.start);
             let ir = (xr-x_min) / dx;
             let jr = (yr-y_min) / dy;
             let i = ir.floor();
@@ -156,6 +176,7 @@ pub fn plot_2d(z: &Vec<R>, fname: &str,
         }
     }
 
+    #[allow(clippy::expect_fun_call)]
     root.present().expect(&format!("Unable to write fo file {}", fname));
 
     Ok(())
@@ -167,23 +188,23 @@ fn find_min_max<T: PartialOrd + Copy>(x: &[Vec<T>]) -> Result<(T,T), TextError> 
     let mut x_min: Option<T> = None;
     let mut x_max: Option<T> = None;
     
-    for j in 0..x.len() {
-        for i in 0..x[j].len() {
+    for x in x.iter() {
+        for &x in x.iter() {
             if let (Some(x_min_c), Some(x_max_c)) = (x_min, x_max) {
-               if x[j][i] < x_min_c { x_min = Some(x[j][i]) };
-                if x[j][i] > x_max_c { x_max = Some(x[j][i]) };
+               if x < x_min_c { x_min = Some(x) };
+                if x > x_max_c { x_max = Some(x) };
             } else {
-                x_min = Some(x[j][i]);
-                x_max = Some(x[j][i]);
+                x_min = Some(x);
+                x_max = Some(x);
             } 
         }
     }
     
     if let (Some(x_min_c), Some(x_max_c)) = (x_min, x_max) {
-        return Ok((x_min_c, x_max_c));
+        Ok((x_min_c, x_max_c))
     } else {
-        return Err(TextError::new("I can't compute the min and mad of an empty array"
-                                  .to_string()));
+        Err(TextError::new("I can't compute the min and mad of an empty array"
+                           .to_string()))
     }
 }
 
