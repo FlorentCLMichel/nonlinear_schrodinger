@@ -10,8 +10,18 @@ path = "src/examples/1d_harmonic_gaussian.rs"
 crate-type = ["bin"]
 
 [[example]]
+name = "1d_harmonic_imag"
+path = "src/examples/1d_harmonic_imag.rs"
+crate-type = ["bin"]
+
+[[example]]
 name = "2d_harmonic_gaussian"
 path = "src/examples/2d_harmonic_gaussian.rs"
+crate-type = ["bin"]
+
+[[example]]
+name = "2d_harmonic_two_gaussians"
+path = "src/examples/2d_harmonic_two_gaussians.rs"
 crate-type = ["bin"]
 
 [features]
