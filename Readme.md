@@ -46,6 +46,8 @@ Two-dimensional simulation with a symmetric harmonic potential and an initial co
 * custom 1D Fourier transform
 * multi-dimensional fft on CPU
 * implementation of a first solver
+* implement a 1D visualizer
+* implement a 2D visualizer
 * test the solver on a 1D quasi-stationary solution
 * test the solver on a 2D quasi-stationary solution
 
@@ -55,7 +57,5 @@ Two-dimensional simulation with a symmetric harmonic potential and an initial co
 * 1D fft using OpenCL
 * multi-dimensional fft using OpenCL
 * link the OpenCL fft to the solver
-* implement a 1D visualizer (using plotters)
-* implement a 2D visualizer (using plotters)
 * tests 
 * benchmarks
