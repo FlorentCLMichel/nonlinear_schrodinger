@@ -24,6 +24,11 @@ name = "2d_harmonic_two_gaussians"
 path = "src/examples/2d_harmonic_two_gaussians.rs"
 crate-type = ["bin"]
 
+[[example]]
+name = "1d_gaussian_neg_g"
+path = "src/examples/1d_gaussian_neg_g.rs"
+crate-type = ["bin"]
+
 [features]
 default = ["ft_cpu"]
 ft_cpu = []
