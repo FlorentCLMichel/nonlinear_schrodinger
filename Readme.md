@@ -39,7 +39,7 @@ It takes four arguments:
 
 * `shape`: length of the grid in each space direction; for instance, if `shape` is `vec![10, 20, 30]`, the solver will solve the non-linear Schrödinger equation on a 3-dimensional grid with shape 10 by 20 by 30;
 * `steps`: space step in each direction (must have the same length as `shape`);
-* `potential_fun`: external potential as a function from $\mathbb{R}^N$ et $\mathbb{R}$, where $N$ is the length of `shape`; 
+* `potential_fun`: external potential as a function from $\mathbb{R}^N$ to $\mathbb{R}$, where $N$ is the length of `shape`; 
 * `g`: nonlinear term, as a function of the density.
 
 A `solver` instance has the following member functions: 
@@ -48,9 +48,9 @@ A `solver` instance has the following member functions:
 * `pub fn mass(&self, psi: &[C]) -> Result<R, SolverError>`: compute the mass from the (discretized) condensate wave function `psi`,
 * `pub fn momentum(&mut self, psi: &[C]) -> Result<Vec<R>, SolverError>` : compute the momentum from the (discretized) condensate wave function `psi`,
 * `pub fn evolve(&mut self, psi: &mut [C], dt: R, nt: usize) -> Result<(), SolverError>`: evolve the initial configuration `psi` for `nt` time steps of duration `dt` each, 
-* `pub fn evolve_i(&mut self, psi: &mut [C], dt: R, nt: usize) -> Result<(), SolverError>`: evolve the initial configuration `psi` for `nt` time steps of duration `dt` each in imaginary time (mostly useful for fuinding the lowest-energy configutation while preserving the other conserved quatities), 
-* `pub fn evolve_oop(&mut self, psi0: &[C], dt: R, nt: usize) -> Result<(), SolverError>`: evolve the initial configuration `psi0` for `nt` time steps of duration `dt` each, without modifing `psi0`, 
-* `pub fn evolve_i_oop(&mut self, psi0: &[C], dt: R, nt: usize) -> Result<(), SolverError>`: evolve the initial configuration `psi0` for `nt` time steps of duration `dt` each in imaginary time, without modifing `psi0`.
+* `pub fn evolve_i(&mut self, psi: &mut [C], dt: R, nt: usize) -> Result<(), SolverError>`: evolve the initial configuration `psi` for `nt` time steps of duration `dt` each in imaginary time (mostly useful for finding the lowest-energy configuration while preserving the other conserved quantities), 
+* `pub fn evolve_oop(&mut self, psi0: &[C], dt: R, nt: usize) -> Result<(), SolverError>`: evolve the initial configuration `psi0` for `nt` time steps of duration `dt` each, without modifying `psi0`, 
+* `pub fn evolve_i_oop(&mut self, psi0: &[C], dt: R, nt: usize) -> Result<(), SolverError>`: evolve the initial configuration `psi0` for `nt` time steps of duration `dt` each in imaginary time, without modifying `psi0`.
 
 ## Plotters
 
@@ -146,8 +146,8 @@ Two-dimensional simulation with a symmetric harmonic potential and an initial co
 * custom 1D Fourier transform
 * multi-dimensional fft on CPU
 * implementation of a first solver
-* implement a 1D visualizer
-* implement a 2D visualizer
+* implement a 1D visualiser
+* implement a 2D visualiser
 * test the solver on a 1D quasi-stationary solution
 * test the solver on a 2D quasi-stationary solution
 
