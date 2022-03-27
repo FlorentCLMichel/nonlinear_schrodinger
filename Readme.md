@@ -1,4 +1,4 @@
-# Nonlinear Schrödinger solver (work in progress)
+# Nonlinear Schrödinger solver
 
 This is a simple numerical solver for the nonlinear Schrödinger equations using a spectral approach. 
 
