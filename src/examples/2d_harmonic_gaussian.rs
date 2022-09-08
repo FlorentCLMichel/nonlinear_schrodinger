@@ -50,7 +50,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Results/2d_harmonic_gaussian_final_density", 
         -(nx as R /2.), nx as R / 2., 
         -(ny as R /2.), ny as R / 2., 
-        nx, ny)?;
+        nx, ny, false)?;
 
     Ok(())
 }
